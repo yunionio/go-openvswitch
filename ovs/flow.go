@@ -460,6 +460,24 @@ func marshalActions(aa []Action) ([]string, error) {
 	return marshalFunctions(fns)
 }
 
+// MatchFlowStrict converts Flow into a strict-matching-aware MatchFlow
+func (f *Flow) MatchFlowStrict() *MatchFlow {
+	mf := f.MatchFlow()
+	mf.Priority = f.Priority
+	mf.Strict = true
+	return mf
+}
+
+// marshalActions marshals all Actions in a Flow to their text form.
+func (f *Flow) marshalActions() ([]string, error) {
+	fns := make([]func() ([]byte, error), 0, len(f.Actions))
+	for _, fn := range f.Actions {
+		fns = append(fns, fn.MarshalText)
+	}
+
+	return marshalFunctions(fns)
+}
+
 // marshalMatches marshals all provided Matches to their text form.
 func marshalMatches(mm []Match) ([]string, error) {
 	fns := make([]func() ([]byte, error), 0, len(mm))
