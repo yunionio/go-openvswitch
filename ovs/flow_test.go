@@ -352,7 +352,7 @@ func TestFlowMarshalText(t *testing.T) {
 					Output(4),
 				},
 			},
-			s: `priority=5000,tcp,in_port=3,nw_dst=169.254.169.254,tp_dst=80,table=0,idle_timeout=0,actions=learn(priority=5000,in_port=4,dl_type=0x0800,nw_proto=6,NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],nw_dst=1.2.3.4,tp_dst=567,table=0,idle_timeout=60,fin_hard_timeout=1,hard_timeout=0,delete_learned,load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_SRC[]->NXM_OF_IP_DST[],load:NXM_OF_TCP_SRC[]->NXM_OF_TCP_DST[],output:NXM_OF_IN_PORT[]),mod_nw_src:1.2.3.4,mod_tp_src:567,output:4`,
+			s: `priority=5000,tcp,in_port=3,nw_dst=169.254.169.254,tp_dst=80,table=0,idle_timeout=0,actions=learn(table=0,priority=5000,in_port=4,dl_type=0x0800,nw_proto=6,NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],nw_dst=1.2.3.4,tp_dst=567,idle_timeout=60,fin_hard_timeout=1,delete_learned,load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_SRC[]->NXM_OF_IP_DST[],load:NXM_OF_TCP_SRC[]->NXM_OF_TCP_DST[],output:NXM_OF_IN_PORT[]),mod_nw_src:1.2.3.4,mod_tp_src:567,output:4`,
 		},
 		{
 			desc: "Flow with LearnedFlow in Learn action with hard_timeout and limit options",
@@ -395,7 +395,7 @@ func TestFlowMarshalText(t *testing.T) {
 					Output(4),
 				},
 			},
-			s: `priority=5000,tcp,in_port=3,nw_dst=169.254.169.254,tp_dst=80,table=0,idle_timeout=0,actions=learn(priority=5000,in_port=4,dl_type=0x0800,nw_proto=6,NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],nw_dst=1.2.3.4,tp_dst=567,table=0,idle_timeout=60,fin_hard_timeout=1,hard_timeout=30,limit=10,delete_learned,load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_SRC[]->NXM_OF_IP_DST[],load:NXM_OF_TCP_SRC[]->NXM_OF_TCP_DST[],output:NXM_OF_IN_PORT[]),mod_nw_src:1.2.3.4,mod_tp_src:567,output:4`,
+			s: `priority=5000,tcp,in_port=3,nw_dst=169.254.169.254,tp_dst=80,table=0,idle_timeout=0,actions=learn(table=0,priority=5000,in_port=4,dl_type=0x0800,nw_proto=6,NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],NXM_OF_TCP_SRC[]=NXM_OF_TCP_DST[],nw_dst=1.2.3.4,tp_dst=567,idle_timeout=60,fin_hard_timeout=1,hard_timeout=30,limit=10,delete_learned,load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_SRC[]->NXM_OF_IP_DST[],load:NXM_OF_TCP_SRC[]->NXM_OF_TCP_DST[],output:NXM_OF_IN_PORT[]),mod_nw_src:1.2.3.4,mod_tp_src:567,output:4`,
 		},
 	}
 
@@ -892,6 +892,117 @@ func TestFlowUnmarshalText(t *testing.T) {
 				Table:       0,
 				IdleTimeout: 0,
 				Actions:     []Action{Drop()},
+			},
+		},
+		{
+			desc: "Learn action ovs-ofctl dump-flows TCP",
+			s:    " cookie=0x0, duration=3453.844s, table=0, n_packets=0, n_bytes=0, idle_age=3453, priority=28200,tcp,in_port=2,tp_dst=20080 actions=learn(table=10,priority=10000,in_port=1,eth_type=0x800,nw_proto=6,tcp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[]),mod_dl_dst:00:24:fd:4f:0a:26,mod_nw_dst:172.16.222.254,mod_tp_dst:80,output:1",
+			f: &Flow{
+				Table:    0,
+				Priority: 28200,
+				Protocol: ProtocolTCPv4,
+				InPort:   2,
+				Matches: []Match{
+					TransportDestinationPort(20080),
+				},
+				IdleTimeout: 0,
+				Actions: []Action{
+					Learn(&LearnedFlow{
+						Table:    10,
+						Priority: 10000,
+						InPort:   1,
+						Matches: []Match{
+							DataLinkType(0x0800),
+							NetworkProtocol(6),
+							TCPSourcePort(80),
+						},
+						Actions: []Action{
+							Load("NXM_OF_ETH_DST[]", "NXM_OF_ETH_SRC[]"),
+							Load("NXM_OF_ETH_SRC[]", "NXM_OF_ETH_DST[]"),
+							Load("NXM_OF_IP_DST[]", "NXM_OF_IP_SRC[]"),
+							Load("NXM_OF_TCP_DST[]", "NXM_OF_TCP_SRC[]"),
+							OutputField("NXM_OF_IN_PORT[]"),
+						},
+					}),
+					ModDataLinkDestination(net.HardwareAddr{0x00, 0x24, 0xfd, 0x4f, 0x0a, 0x26}),
+					ModNetworkDestination(net.IP{172, 16, 222, 254}),
+					ModTransportDestinationPort(80),
+					Output(1),
+				},
+			},
+		},
+		{
+			desc: "Learn action ovs-ofctl dump-flows UDP",
+			s:    " cookie=0x0, duration=3453.844s, table=0, n_packets=0, n_bytes=0, idle_age=3453, priority=28200,tcp,in_port=2,tp_dst=20080 actions=learn(table=10,priority=10000,in_port=1,eth_type=0x800,nw_proto=17,udp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[]),mod_dl_dst:00:24:fd:4f:0a:26,mod_nw_dst:172.16.222.254,mod_tp_dst:80,output:1",
+			f: &Flow{
+				Table:    0,
+				Priority: 28200,
+				Protocol: ProtocolTCPv4,
+				InPort:   2,
+				Matches: []Match{
+					TransportDestinationPort(20080),
+				},
+				IdleTimeout: 0,
+				Actions: []Action{
+					Learn(&LearnedFlow{
+						Table:    10,
+						Priority: 10000,
+						InPort:   1,
+						Matches: []Match{
+							DataLinkType(0x0800),
+							NetworkProtocol(17),
+							UDPSourcePort(80),
+						},
+						Actions: []Action{
+							Load("NXM_OF_ETH_DST[]", "NXM_OF_ETH_SRC[]"),
+							Load("NXM_OF_ETH_SRC[]", "NXM_OF_ETH_DST[]"),
+							Load("NXM_OF_IP_DST[]", "NXM_OF_IP_SRC[]"),
+							Load("NXM_OF_TCP_DST[]", "NXM_OF_TCP_SRC[]"),
+							OutputField("NXM_OF_IN_PORT[]"),
+						},
+					}),
+					ModDataLinkDestination(net.HardwareAddr{0x00, 0x24, 0xfd, 0x4f, 0x0a, 0x26}),
+					ModNetworkDestination(net.IP{172, 16, 222, 254}),
+					ModTransportDestinationPort(80),
+					Output(1),
+				},
+			},
+		},
+		{
+			desc: "Learn action",
+			s:    "table=1,priority=28200,in_port=2,ip,tcp,tp_dst=20080,actions=learn(table=10,priority=10000,in_port=1,dl_type=0x0800,nw_proto=6,tp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[]),mod_dl_dst:00:24:fd:4f:0a:26,mod_nw_dst:172.16.222.254,mod_tp_dst:80,output:1",
+			f: &Flow{
+				Table:    1,
+				Priority: 28200,
+				Protocol: ProtocolTCPv4,
+				InPort:   2,
+				Matches: []Match{
+					TransportDestinationPort(20080),
+				},
+				IdleTimeout: 0,
+				Actions: []Action{
+					Learn(&LearnedFlow{
+						Table:    10,
+						Priority: 10000,
+						InPort:   1,
+						Matches: []Match{
+							DataLinkType(0x0800),
+							NetworkProtocol(6),
+							TransportSourcePort(80),
+						},
+						Actions: []Action{
+							Load("NXM_OF_ETH_DST[]", "NXM_OF_ETH_SRC[]"),
+							Load("NXM_OF_ETH_SRC[]", "NXM_OF_ETH_DST[]"),
+							Load("NXM_OF_IP_DST[]", "NXM_OF_IP_SRC[]"),
+							Load("NXM_OF_TCP_DST[]", "NXM_OF_TCP_SRC[]"),
+							OutputField("NXM_OF_IN_PORT[]"),
+						},
+					}),
+					ModDataLinkDestination(net.HardwareAddr{0x00, 0x24, 0xfd, 0x4f, 0x0a, 0x26}),
+					ModNetworkDestination(net.IP{172, 16, 222, 254}),
+					ModTransportDestinationPort(80),
+					Output(1),
+				},
 			},
 		},
 	}

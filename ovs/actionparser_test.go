@@ -57,6 +57,17 @@ func Test_actionParser(t *testing.T) {
 				"ct(commit,exec(set_field:1->ct_label,set_field:1->ct_mark))",
 			},
 		},
+		{
+			name: "action with learn",
+			in:   "learn(table=10,priority=10000,in_port=1,dl_type=0x0800,nw_proto=6,tp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[]),mod_dl_dst:00:24:fd:4f:0a:26,mod_nw_dst:172.16.222.254,mod_tp_dst:80,output:1",
+			raw: []string{
+				"learn(table=10,priority=10000,in_port=1,dl_type=0x0800,nw_proto=6,tp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[])",
+				"mod_dl_dst:00:24:fd:4f:0a:26",
+				"mod_nw_dst:172.16.222.254",
+				"mod_tp_dst:80",
+				"output:1",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -309,13 +320,33 @@ func Test_parseAction(t *testing.T) {
 			s:       "conjunxxxxx(123,3/2)",
 			invalid: true,
 		},
+		{
+			s: "learn(table=10,priority=10000,in_port=1,dl_type=0x0800,nw_proto=6,tp_src=80,load:NXM_OF_ETH_DST[]->NXM_OF_ETH_SRC[],load:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],load:NXM_OF_IP_DST[]->NXM_OF_IP_SRC[],load:NXM_OF_TCP_DST[]->NXM_OF_TCP_SRC[],output:NXM_OF_IN_PORT[])",
+			a: Learn(&LearnedFlow{
+				Table:    10,
+				Priority: 10000,
+				InPort:   1,
+				Matches: []Match{
+					DataLinkType(0x0800),
+					NetworkProtocol(6),
+					TransportSourcePort(80),
+				},
+				Actions: []Action{
+					Load("NXM_OF_ETH_DST[]", "NXM_OF_ETH_SRC[]"),
+					Load("NXM_OF_ETH_SRC[]", "NXM_OF_ETH_DST[]"),
+					Load("NXM_OF_IP_DST[]", "NXM_OF_IP_SRC[]"),
+					Load("NXM_OF_TCP_DST[]", "NXM_OF_TCP_SRC[]"),
+					OutputField("NXM_OF_IN_PORT[]"),
+				},
+			}),
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.s, func(t *testing.T) {
 			a, err := parseAction(tt.s)
 			if err != nil && !tt.invalid {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("parseAction unexpected error: %v", err)
 			}
 			if tt.invalid {
 				return
@@ -323,7 +354,7 @@ func Test_parseAction(t *testing.T) {
 
 			s, err := a.MarshalText()
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("MarshalText unexpected error: %v", err)
 			}
 
 			// Special case: LOCAL and NORMAL are converted to
