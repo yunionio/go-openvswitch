@@ -1,6 +1,6 @@
-module yunion.io/x/go-openvswitch
+module github.com/digitalocean/go-openvswitch
 
-go 1.18
+go 1.16
 
 require (
 	github.com/google/go-cmp v0.5.6
