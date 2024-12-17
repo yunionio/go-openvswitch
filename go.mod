@@ -1,4 +1,4 @@
-module github.com/digitalocean/go-openvswitch
+module yunion.io/x/go-openvswitch
 
 go 1.16
 
